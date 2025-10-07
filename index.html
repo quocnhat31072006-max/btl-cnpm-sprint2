@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💰 Quản lý chi tiêu nhóm</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>💰 Quản lý chi tiêu nhóm</h1>
+    <div class="header-buttons">
+      <button onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
+      <button onclick="openMemberModal()">👥 Thành viên</button>
+      <button onclick="logout()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="column" id="col1">
+      <h2>Chi tiêu</h2>
+      <button class="add-card" onclick="addCard(this)">+ Thêm chi tiêu</button>
+    </div>
+
+    <div class="column" id="col2">
+      <h2 onclick="renameColumn(this)">Tháng 10</h2>
+      <button class="add-card" onclick="addCard(this)">+ Thêm ghi chú</button>
+    </div>
+
+    <div class="column" id="col3">
+      <h2>Quyết toán</h2>
+      <div class="card">Tổng chi: 0đ</div>
+      <div class="card">Chia đều: 0đ/người</div>
+      <button class="add-card" onclick="calculate()">💡 Tính tổng</button>
+    </div>
+
+    <div class="column" id="col4">
+      <h2>Chia tiền</h2>
+      <div id="shareList"></div>
+    </div>
+  </main>
+
+  <!-- Popup thành viên -->
+  <div id="memberModal">
+    <div class="modal-content">
+      <h3>Danh sách thành viên</h3>
+      <ul class="member-list" id="memberList"></ul>
+      <input type="text" id="newMember" placeholder="Tên thành viên..." />
+      <button onclick="addMember()">Thêm</button>
+      <br />
+      <button onclick="closeMemberModal()">Đóng</button>
+    </div>
+  </div>
+
+  <script>
+    // ======= Đăng xuất =======
+    function logout() {
+      alert("Đăng xuất thành công!");
+      window.location.href = "login.html";
+    }
+
+    // ======= Đổi tên bảng =======
+    function renameColumn(title) {
+      const newName = prompt("Nhập tên mới cho bảng:", title.textContent);
+      if (newName && newName.trim() !== "") title.textContent = newName.trim();
+    }
+
+    // ======= Thêm thẻ =======
+    function addCard(btn) {
+      const column = btn.parentElement;
+      const text = prompt("Nhập nội dung:");
+      if (text && text.trim() !== "") {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.draggable = true;
+        card.textContent = text;
+        addDragEvents(card);
+        column.insertBefore(card, btn);
+      }
+    }
+
+    // ======= Kéo thả =======
+    function addDragEvents(card) {
+      card.addEventListener("dragstart", () => card.classList.add("dragging"));
+      card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    }
+
+    document.querySelectorAll(".card").forEach(addDragEvents);
+    document.querySelectorAll(".column").forEach((col) => {
+      col.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const dragging = document.querySelector(".dragging");
+        const addBtn = col.querySelector(".add-card");
+        col.insertBefore(dragging, addBtn);
+      });
+    });
+
+    // ======= Popup Thành viên =======
+    const memberModal = document.getElementById("memberModal");
+    const memberList = document.getElementById("memberList");
+    const newMemberInput = document.getElementById("newMember");
+
+    function openMemberModal() {
+      memberModal.style.display = "flex";
+      loadMembers();
+    }
+
+    function closeMemberModal() {
+      memberModal.style.display = "none";
+    }
+
+    function loadMembers() {
+      const members = JSON.parse(localStorage.getItem("members") || "[]");
+      memberList.innerHTML = members
+        .map(
+          (m, i) =>
+            `<li>👤 ${m} <button class="delete-btn" onclick="removeMember(${i})">❌</button></li>`
+        )
+        .join("");
+    }
+
+    function addMember() {
+      const name = newMemberInput.value.trim();
+      if (!name) return alert("Nhập tên thành viên!");
+      let members = JSON.parse(localStorage.getItem("members") || "[]");
+      if (members.includes(name)) return alert("Thành viên đã tồn tại!");
+      members.push(name);
+      localStorage.setItem("members", JSON.stringify(members));
+      newMemberInput.value = "";
+      loadMembers();
+    }
+
+    function removeMember(index) {
+      let members = JSON.parse(localStorage.getItem("members") || "[]");
+      members.splice(index, 1);
+      localStorage.setItem("members", JSON.stringify(members));
+      loadMembers();
+    }
+
+    // ======= Tính toán =======
+    function calculate() {
+      const expenses = document.querySelectorAll("#col1 .card");
+      let total = 0;
+      expenses.forEach((c) => {
+        const num = c.textContent.match(/\d+/);
+        if (num) total += parseInt(num[0]);
+      });
+
+      const members = JSON.parse(localStorage.getItem("members") || "[]");
+      if (members.length === 0) return alert("Chưa có thành viên!");
+
+      const perPerson = total / members.length;
+      document.querySelector("#col3 .card:nth-child(2)").textContent = `Tổng chi: ${total.toLocaleString()}đ`;
+      document.querySelector("#col3 .card:nth-child(3)").textContent = `Chia đều: ${perPerson.toLocaleString()}đ/người`;
+
+      const shareList = document.getElementById("shareList");
+      shareList.innerHTML = members
+        .map((m) => `<div class="card">${m}: ${perPerson.toLocaleString()}đ</div>`)
+        .join("");
+    }
+
+    // ======= Light / Dark Mode =======
+    const themeBtn = document.getElementById("themeBtn");
+    const currentTheme = localStorage.getItem("theme") || "dark";
+
+    document.body.classList.toggle("light", currentTheme === "light");
+    updateThemeButton();
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      const isLight = document.body.classList.contains("light");
+      localStorage.setItem("theme", isLight ? "light" : "dark");
+      updateThemeButton();
+    }
+
+    function updateThemeButton() {
+      const isLight = document.body.classList.contains("light");
+      themeBtn.textContent = isLight ? "☀️ Light Mode" : "🌙 Dark Mode";
+    }
+  </script>
+</body>
+</html>

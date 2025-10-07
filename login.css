@@ -1,0 +1,124 @@
+* {
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #1f1c2c, #928dab);
+  overflow: hidden;
+}
+
+/* 💸 hiệu ứng tiền bay */
+.money {
+  position: absolute;
+  font-size: 22px;
+  opacity: 0.8;
+  animation: float 6s linear infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Tiêu đề chính giữa */
+.main-title {
+  position: absolute;
+  top: 40px;
+  width: 100%;
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 1px;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+.login-container {
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 40px;
+  width: 350px;
+  text-align: center;
+  color: #fff;
+  z-index: 2;
+}
+
+h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  letter-spacing: 0.5px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+label {
+  font-size: 14px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+input {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+}
+
+input::placeholder {
+  color: #ddd;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: #6a5acd;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-login:hover {
+  background-color: #7b68ee;
+  transform: translateY(-2px);
+}
+
+.register {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.register a {
+  color: #87cefa;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.register a:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng ký - Quản lý chi tiêu nhóm</title>
+    <link rel="stylesheet" href="login.css" />
+  </head>
+  <body>
+    <h1 class="main-title">💰 Quản lý chi tiêu nhóm</h1>
+
+    <div class="login-container">
+      <h2>Đăng ký tài khoản</h2>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="username">Tên đăng nhập</label>
+          <input type="text" id="username" placeholder="Nhập tên đăng nhập" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Mật khẩu</label>
+          <input type="password" id="password" placeholder="Nhập mật khẩu" required />
+        </div>
+        <button type="submit" class="btn-login">Đăng ký</button>
+      </form>
+      <div class="register">
+        Đã có tài khoản? <a href="login.html">Đăng nhập</a>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById("registerForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        if (!username || !password) return alert("Vui lòng nhập đầy đủ thông tin!");
+
+        try {
+          const res = await fetch("http://localhost:3000/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+
+          const data = await res.json();
+          alert(data.message);
+          if (data.success) window.location.href = "login.html";
+        } catch (err) {
+          console.error("Register error:", err);
+          alert("❌ Lỗi kết nối server!");
+        }
+      });
+    </script>
+
+    <script>
+  const icons = ["💸", "💰", "🪙", "💵"];
+
+  function createMoney() {
+    const span = document.createElement("span");
+    span.className = "money";
+    span.textContent = icons[Math.floor(Math.random() * icons.length)];
+
+    // Vị trí và hiệu ứng ngẫu nhiên
+    span.style.left = Math.random() * 100 + "vw";
+    span.style.fontSize = 18 + Math.random() * 20 + "px";
+    span.style.animationDuration = 4 + Math.random() * 4 + "s";
+    span.style.opacity = 0.7 + Math.random() * 0.3;
+    document.body.appendChild(span);
+
+    setTimeout(() => span.remove(), 8000);
+  }
+
+  // Tạo hiệu ứng bay đều đều
+  setInterval(createMoney, 500);
+</script>
+  </body>
+</html>

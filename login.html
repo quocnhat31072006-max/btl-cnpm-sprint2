@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng nhập - Quản lý chi tiêu nhóm</title>
+    <link rel="stylesheet" href="login.css" />
+  </head>
+  <body>
+    <!-- 💰 Tiêu đề trung tâm -->
+    <h1 class="main-title">💰 Quản lý chi tiêu nhóm</h1>
+
+    <!-- Form đăng nhập -->
+    <div class="login-container">
+      <h2>Đăng nhập</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Tên đăng nhập</label>
+          <input type="text" id="username" placeholder="Nhập tên đăng nhập" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Mật khẩu</label>
+          <input type="password" id="password" placeholder="Nhập mật khẩu" required />
+        </div>
+        <button type="submit" class="btn-login">Đăng nhập</button>
+      </form>
+      <div class="register">
+        Chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
+      </div>
+    </div>
+
+    <!-- 💸 Hiệu ứng tiền bay -->
+    <script>
+      const icons = ["💸", "💰", "🪙", "💵"];
+      for (let i = 0; i < 20; i++) {
+        const span = document.createElement("span");
+        span.className = "money";
+        span.textContent = icons[Math.floor(Math.random() * icons.length)];
+        span.style.left = Math.random() * 100 + "vw";
+        span.style.animationDuration = 4 + Math.random() * 5 + "s";
+        span.style.fontSize = 18 + Math.random() * 14 + "px";
+        document.body.appendChild(span);
+      }
+    </script>
+
+    <!-- 🧠 Xử lý login (kết nối DB thật) -->
+    <script>
+      document.getElementById("loginForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value.trim();
+        if (!username || !password) return alert("Vui lòng nhập đủ tên đăng nhập và mật khẩu!");
+
+        try {
+          const res = await fetch("http://localhost:3000/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+
+          if (!res.ok) {
+            const txt = await res.text();
+            console.error("Server returned non-OK:", res.status, txt);
+            throw new Error(`Server lỗi ${res.status}: ${txt}`);
+          }
+
+          const data = await res.json();
+          console.log("Login response:", data);
+
+          if (data.success) {
+            localStorage.setItem("loggedInUser", JSON.stringify(data.user));
+            window.location.href = "index.html";
+          } else {
+            alert(data.message || "Sai tài khoản hoặc mật khẩu!");
+          }
+        } catch (err) {
+          console.error("Login error:", err);
+          alert("❌ Lỗi kết nối server: " + err.message);
+        }
+      });
+    </script>
+  </body>
+</html>
