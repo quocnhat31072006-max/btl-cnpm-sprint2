@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tạo & Xem nhóm - Quản lý chi tiêu nhóm</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #000103;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    form {
+      max-width: 400px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #070707;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #edf5f0;
+      color: rgb(0, 0, 0);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #219150;
+    }
+    .group-list {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #060000;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .group-item:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <h1 color = blue>💰 Quản lý chi tiêu nhóm</h1>
+  <h2>Tạo nhóm mới</h2>
+
+  <form id="createGroupForm">
+    <div class="form-group">
+      <label for="groupName">Tên nhóm</label>
+      <input type="text" id="groupName" placeholder="Nhập tên nhóm" required />
+    </div>
+    <button type="submit">Tạo nhóm</button>
+  </form>
+
+  <h2>Các nhóm của bạn</h2>
+  <div id="groupList" class="group-list">Đang tải danh sách nhóm...</div>
+
+  <script>
+    // --- Lấy thông tin user đang đăng nhập ---
+    const user = JSON.parse(localStorage.getItem("loggedInUser"));
+    const userId = user?.id || user?.user_id; // tùy backend trả về
+
+    if (!userId) {
+      alert("⚠️ Bạn chưa đăng nhập!");
+      window.location.href = "login.html";
+    } else {
+      loadGroups();
+    }
+
+    // --- Hàm tải danh sách nhóm ---
+    async function loadGroups() {
+      try {
+        const res = await fetch(`http://localhost:3000/groups?userId=${userId}`);
+        const data = await res.json();
+
+        if (!data.success) {
+          document.getElementById("groupList").innerHTML = `<p>❌ ${data.message}</p>`;
+          return;
+        }
+
+        if (data.groups.length === 0) {
+          document.getElementById("groupList").innerHTML = "<p>Bạn chưa tham gia nhóm nào.</p>";
+          return;
+        }
+
+        const listHTML = data.groups.map(
+          (g) => `
+          <div class="group-item">
+            <span><b>${g.group_name}</b></span>
+            <button onclick="viewGroup(${g.group_id})">Xem</button>
+          </div>`
+        ).join("");
+
+        document.getElementById("groupList").innerHTML = listHTML;
+      } catch (err) {
+        console.error(err);
+        document.getElementById("groupList").innerHTML = "❌ Lỗi kết nối server.";
+      }
+    }
+
+    // --- Hàm xem chi tiết nhóm ---
+    function viewGroup(groupId) {
+      localStorage.setItem("currentGroupId", groupId);
+      window.location.href = "group-detail.html"; // Trang chi tiêu nhóm
+    }
+
+    // --- Xử lý form tạo nhóm ---
+    document.getElementById("createGroupForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const groupName = document.getElementById("groupName").value.trim();
+
+      if (!groupName) return alert("Vui lòng nhập tên nhóm!");
+
+      try {
+        const res = await fetch("http://localhost:3000/create-group", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupName, userId }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("✅ Tạo nhóm thành công!");
+          document.getElementById("groupName").value = "";
+          loadGroups(); // refresh danh sách nhóm
+        } else {
+          alert("❌ " + data.message);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("❌ Lỗi kết nối server: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>

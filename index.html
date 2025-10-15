@@ -1,18 +1,32 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>💰 Quản lý chi tiêu nhóm</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+  </style>
 </head>
+
 <body>
   <header>
     <h1>💰 Quản lý chi tiêu nhóm</h1>
+    <button id="reportBtn" class="btn">📊 Báo cáo</button>
     <div class="header-buttons">
+      <div class="icon-buttons">
+        <button id="memberIcon" onclick="handleNotificationClick && handleNotificationClick()">
+          <span id="notificationDot" class="notification-dot"></span> 🔔
+        </button>
+        <div id="notificationMessage" class="notification-message"></div>
+      </div>
       <button onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
       <button onclick="openMemberModal()">👥 Thành viên</button>
+      <button onclick="exportReport()">📤 Xuất Excel</button>
       <button onclick="logout()">Đăng xuất</button>
+      <div id="monthlyReport" style="margin-top: 20px;"></div>
+
     </div>
   </header>
 
@@ -41,7 +55,7 @@
   </main>
 
   <!-- Popup thành viên -->
-  <div id="memberModal">
+  <div id="memberModal" style="display:none">
     <div class="modal-content">
       <h3>Danh sách thành viên</h3>
       <ul class="member-list" id="memberList"></ul>
@@ -65,18 +79,187 @@
       if (newName && newName.trim() !== "") title.textContent = newName.trim();
     }
 
-    // ======= Thêm thẻ =======
-    function addCard(btn) {
-      const column = btn.parentElement;
-      const text = prompt("Nhập nội dung:");
-      if (text && text.trim() !== "") {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.draggable = true;
-        card.textContent = text;
-        addDragEvents(card);
-        column.insertBefore(card, btn);
+    // ======= Hiển thị chi tiêu từ DB =======
+    async function loadExpenses() {
+      const currentGroupId = localStorage.getItem("currentGroupId");
+      if (!currentGroupId) return;
+
+      try {
+        const res = await fetch(`http://localhost:3000/get-expenses/${currentGroupId}`);
+        const data = await res.json();
+        if (!data.success) {
+          console.warn("Lỗi khi tải chi tiêu:", data.message);
+          return;
+        }
+
+        const column = document.getElementById("col1");
+        const addBtn = column.querySelector(".add-card");
+        // remove only expense cards (keep static cards if any)
+        column.querySelectorAll(".card[data-expense-id]").forEach((c) => c.remove());
+
+        data.expenses.forEach((exp) => {
+          const card = document.createElement("div");
+          card.className = "card";
+          card.draggable = true;
+          card.dataset.expenseId = exp.expense_id;
+          card.dataset.amount = exp.amount; // lưu số tiền chính xác
+
+          const left = document.createElement("div");
+          left.className = "left";
+
+          const span = document.createElement("span");
+          span.textContent = `${exp.title} - ${Number(exp.amount).toLocaleString()}đ`;
+
+          const tagDisplay = document.createElement("span");
+          tagDisplay.className = "tag-display";
+          // dùng note từ DB (server đang lưu note)
+          tagDisplay.textContent = exp.note || "📦 Khác";
+
+          left.appendChild(span);
+          left.appendChild(tagDisplay);
+
+          // controls: tag, edit, delete
+          const ctr = document.createElement("div");
+          ctr.className = "controls";
+
+          const tagBtn = document.createElement("button");
+          tagBtn.className = "tag-btn";
+          tagBtn.title = "Thay đổi nhãn";
+          tagBtn.innerText = "🏷️";
+          tagBtn.onclick = (e) => { e.stopPropagation(); showTagMenu(card); };
+
+          const editBtn = document.createElement("button");
+          editBtn.className = "edit-btn";
+          editBtn.title = "Sửa";
+          editBtn.innerText = "✏️";
+          editBtn.onclick = (e) => { e.stopPropagation(); editExpense(card); };
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "del-btn";
+          delBtn.title = "Xóa";
+          delBtn.innerText = "🗑️";
+          delBtn.onclick = (e) => { e.stopPropagation(); deleteExpense(card); };
+
+          ctr.appendChild(tagBtn);
+          ctr.appendChild(editBtn);
+          ctr.appendChild(delBtn);
+
+          card.appendChild(left);
+          card.appendChild(ctr);
+
+          addDragEvents(card);
+          column.insertBefore(card, addBtn);
+        });
+      } catch (err) {
+        console.error("Lỗi khi loadExpenses:", err);
       }
+    }
+
+    // ======= Thêm chi tiêu mới =======
+    async function addCard(btn) {
+      const column = btn.parentElement;
+      const text = prompt("Nhập nội dung chi tiêu (VD: Mua đồ ăn):");
+      if (!text || !text.trim()) return;
+
+      const amountInput = prompt("Nhập số tiền (chỉ nhập số):");
+      const amount = parseFloat(amountInput);
+      if (isNaN(amount) || amount <= 0) return alert("Số tiền không hợp lệ!");
+
+      const currentGroupId = localStorage.getItem("currentGroupId");
+      const currentUser = JSON.parse(localStorage.getItem("loggedInUser") || "null");
+      const currentUserId = currentUser?.user_id || currentUser?.userId || currentUser?.id;
+      if (!currentGroupId || !currentUserId) return alert("Chưa chọn nhóm hoặc chưa đăng nhập!");
+
+      try {
+        const res = await fetch("http://localhost:3000/add-expense", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: text,
+            amount,
+            category: "📦 Khác", // server sẽ map vào note
+            groupId: Number(currentGroupId),
+            createdBy: Number(currentUserId),
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("✅ Đã thêm chi tiêu!");
+          await loadExpenses();
+        } else {
+          alert("⚠️ " + (data.message || "Lỗi khi thêm"));
+        }
+      } catch (err) {
+        console.error("Lỗi khi thêm chi tiêu:", err);
+        alert("❌ Không thể kết nối server!");
+      }
+    }
+
+    // ======= Menu chọn tag (cập nhật DB) =======
+    function showTagMenu(card) {
+      const tags = [
+        { label: "🍜 Ăn uống" },
+        { label: "🚗 Đi lại" },
+        { label: "🛍️ Mua sắm" },
+        { label: "🎮 Giải trí" },
+        { label: "📦 Khác" },
+      ];
+
+      const oldMenu = document.querySelector(".tag-menu");
+      if (oldMenu) oldMenu.remove();
+
+      const menu = document.createElement("div");
+      menu.className = "tag-menu";
+
+      tags.forEach((tag) => {
+        const item = document.createElement("div");
+        item.textContent = tag.label;
+
+        item.onclick = async () => {
+          const tagDisplay = card.querySelector(".tag-display");
+          tagDisplay.textContent = tag.label;
+          menu.remove();
+
+          // === Gửi cập nhật tag lên server ===
+          const expenseId = card.dataset.expenseId;
+          if (!expenseId) {
+            console.error("Thiếu expenseId trong card khi cập nhật tag");
+            return;
+          }
+
+          try {
+            const res = await fetch("http://localhost:3000/update-expense-tag", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                expenseId: Number(expenseId),
+                newTag: tag.label,
+              }),
+            });
+
+            const result = await res.json();
+            if (!result.success) {
+              alert("Lỗi khi cập nhật tag: " + (result.message || ""));
+            } else {
+              // nếu cần reload toàn bộ list, uncomment dòng sau:
+              // await loadExpenses();
+            }
+          } catch (err) {
+            console.error("Lỗi khi cập nhật tag:", err);
+            alert("Không thể kết nối server!");
+          }
+        };
+
+        menu.appendChild(item);
+      });
+
+      document.body.appendChild(menu);
+      const rect = card.getBoundingClientRect();
+      menu.style.left = rect.right + "px";
+      menu.style.top = rect.top + "px";
+
+      document.addEventListener("click", () => menu.remove(), { once: true });
     }
 
     // ======= Kéo thả =======
@@ -85,84 +268,209 @@
       card.addEventListener("dragend", () => card.classList.remove("dragging"));
     }
 
-    document.querySelectorAll(".card").forEach(addDragEvents);
     document.querySelectorAll(".column").forEach((col) => {
       col.addEventListener("dragover", (e) => {
         e.preventDefault();
         const dragging = document.querySelector(".dragging");
         const addBtn = col.querySelector(".add-card");
-        col.insertBefore(dragging, addBtn);
+        if (dragging && addBtn) col.insertBefore(dragging, addBtn);
       });
     });
 
-    // ======= Popup Thành viên =======
+    // ======= Thành viên (simple local + server) =======
     const memberModal = document.getElementById("memberModal");
     const memberList = document.getElementById("memberList");
     const newMemberInput = document.getElementById("newMember");
 
     function openMemberModal() {
-      memberModal.style.display = "flex";
+      memberModal.style.display = "block";
       loadMembers();
     }
-
     function closeMemberModal() {
       memberModal.style.display = "none";
     }
 
     function loadMembers() {
-      const members = JSON.parse(localStorage.getItem("members") || "[]");
-      memberList.innerHTML = members
-        .map(
-          (m, i) =>
-            `<li>👤 ${m} <button class="delete-btn" onclick="removeMember(${i})">❌</button></li>`
-        )
-        .join("");
+      const currentGroupId = localStorage.getItem("currentGroupId");
+      // Try server first, fallback to localStorage
+      if (!currentGroupId) {
+        memberList.innerHTML = "<li>Chưa chọn nhóm</li>";
+        return;
+      }
+
+      fetch(`http://localhost:3000/get-members/${currentGroupId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.success) {
+            memberList.innerHTML = data.members.map((m, i) =>
+              `<li>👤 ${m.username || m.name || m.user_id} <button class="delete-btn" onclick="removeMember(${i})">❌</button></li>`
+            ).join("");
+          } else {
+            // fallback: localStorage members
+            const members = JSON.parse(localStorage.getItem("members") || "[]");
+            memberList.innerHTML = members.map((m, i) => `<li>👤 ${m} <button class="delete-btn" onclick="removeMember(${i})">❌</button></li>`).join("");
+          }
+        })
+        .catch(_ => {
+          const members = JSON.parse(localStorage.getItem("members") || "[]");
+          memberList.innerHTML = members.map((m, i) => `<li>👤 ${m} <button class="delete-btn" onclick="removeMember(${i})">❌</button></li>`).join("");
+        });
     }
 
-    function addMember() {
+    async function addMember() {
       const name = newMemberInput.value.trim();
       if (!name) return alert("Nhập tên thành viên!");
-      let members = JSON.parse(localStorage.getItem("members") || "[]");
-      if (members.includes(name)) return alert("Thành viên đã tồn tại!");
-      members.push(name);
-      localStorage.setItem("members", JSON.stringify(members));
-      newMemberInput.value = "";
-      loadMembers();
+      const currentGroupId = localStorage.getItem("currentGroupId");
+      if (!currentGroupId) return alert("Chưa chọn nhóm!");
+
+      try {
+        const res = await fetch("http://localhost:3000/add-member", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupId: Number(currentGroupId), username: name }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✅ " + data.message);
+          newMemberInput.value = "";
+          loadMembers();
+        } else {
+          alert("⚠️ " + (data.message || ""));
+        }
+      } catch (err) {
+        console.error("Lỗi khi thêm thành viên:", err);
+        alert("❌ Không thể kết nối server!");
+      }
     }
 
     function removeMember(index) {
+      // local fallback delete (server-side removal not implemented here)
       let members = JSON.parse(localStorage.getItem("members") || "[]");
       members.splice(index, 1);
       localStorage.setItem("members", JSON.stringify(members));
       loadMembers();
     }
 
-    // ======= Tính toán =======
-    function calculate() {
-      const expenses = document.querySelectorAll("#col1 .card");
-      let total = 0;
-      expenses.forEach((c) => {
-        const num = c.textContent.match(/\d+/);
-        if (num) total += parseInt(num[0]);
-      });
+    // ======= Tính toán: tính đúng và chia đều cho từng user trong nhóm =======
+    async function calculate() {
+      const currentGroupId = localStorage.getItem("currentGroupId");
+      if (!currentGroupId) return alert("Chưa chọn nhóm!");
 
-      const members = JSON.parse(localStorage.getItem("members") || "[]");
-      if (members.length === 0) return alert("Chưa có thành viên!");
+      try {
+        // Lấy chi tiêu từ server
+        const expRes = await fetch(`http://localhost:3000/get-expenses/${currentGroupId}`);
+        const expData = await expRes.json();
+        if (!expData.success) throw new Error("Không lấy được expenses");
 
-      const perPerson = total / members.length;
-      document.querySelector("#col3 .card:nth-child(2)").textContent = `Tổng chi: ${total.toLocaleString()}đ`;
-      document.querySelector("#col3 .card:nth-child(3)").textContent = `Chia đều: ${perPerson.toLocaleString()}đ/người`;
+        // Lấy members từ server (nếu server chưa có route, fallback to localStorage)
+        let members = [];
+        try {
+          const memRes = await fetch(`http://localhost:3000/get-members/${currentGroupId}`);
+          const memData = await memRes.json();
+          if (memData.success) members = memData.members;
+        } catch (_) {
+          // fallback
+          const memLocal = JSON.parse(localStorage.getItem("members") || "[]");
+          // memLocal may be array of names or objects
+          members = memLocal.map(m => (typeof m === "string" ? { username: m } : m));
+        }
 
-      const shareList = document.getElementById("shareList");
-      shareList.innerHTML = members
-        .map((m) => `<div class="card">${m}: ${perPerson.toLocaleString()}đ</div>`)
-        .join("");
+        if (!members || members.length === 0) return alert("Nhóm chưa có thành viên!");
+
+        // Tính tổng chính xác (dùng số thực)
+        let total = 0;
+        expData.expenses.forEach(e => {
+          total += Number(e.amount) || 0;
+        });
+
+        const perPerson = total / members.length;
+
+        // Cập nhật giao diện chính xác
+        const col3Cards = document.querySelectorAll("#col3 .card");
+        if (col3Cards.length >= 2) {
+          col3Cards[0].textContent = `Tổng chi: ${total.toLocaleString()}đ`;
+          col3Cards[1].textContent = `Chia đều: ${perPerson.toLocaleString()}đ/người`;
+        } else {
+          console.warn("Không tìm thấy thẻ card trong cột Quyết toán!");
+        }
+
+        const shareList = document.getElementById("shareList");
+        shareList.innerHTML = members.map(m => {
+          const name = m.username || m.name || m;
+          return `<div class="card">${name}: ${perPerson.toLocaleString()}đ</div>`;
+        }).join("");
+      } catch (err) {
+        console.error("Lỗi khi tính toán:", err);
+        alert("❌ Không thể tính toán: " + (err.message || ""));
+      }
     }
 
-    // ======= Light / Dark Mode =======
+    // ======= Sửa chi tiêu =======
+    async function editExpense(card) {
+      const expenseId = card.dataset.expenseId;
+      if (!expenseId) return alert("Không có expenseId!");
+
+      const span = card.querySelector(".left span");
+      const oldText = span?.textContent || "";
+      const oldTitle = oldText.split(" - ")[0] || "";
+      const oldAmountStr = (oldText.split(" - ")[1] || "0đ").replace("đ", "").replace(/,/g, "");
+      const newTitle = prompt("Nhập tên chi tiêu mới:", oldTitle);
+      if (!newTitle) return;
+      const newAmountInput = prompt("Nhập số tiền mới:", oldAmountStr);
+      const newAmount = parseFloat(newAmountInput);
+      if (isNaN(newAmount)) return alert("Số tiền không hợp lệ!");
+
+      try {
+        const res = await fetch("http://localhost:3000/update-expense", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expenseId: Number(expenseId),
+            title: newTitle.trim(),
+            amount: newAmount,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✅ Đã cập nhật chi tiêu!");
+          await loadExpenses();
+        } else {
+          alert("⚠️ " + (data.message || ""));
+        }
+      } catch (err) {
+        console.error("Lỗi editExpense:", err);
+        alert("❌ Không thể kết nối server!");
+      }
+    }
+
+    // ======= Xóa chi tiêu =======
+    async function deleteExpense(card) {
+      const expenseId = card.dataset.expenseId;
+      if (!expenseId) return alert("Không có expenseId!");
+      if (!confirm("Bạn có chắc muốn xóa chi tiêu này không?")) return;
+
+      try {
+        const res = await fetch("http://localhost:3000/delete-expense", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expenseId: Number(expenseId) }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("🗑️ Đã xóa chi tiêu!");
+          card.remove();
+        } else {
+          alert("⚠️ " + (data.message || ""));
+        }
+      } catch (err) {
+        console.error("Lỗi deleteExpense:", err);
+        alert("❌ Không thể kết nối server!");
+      }
+    }
+
+    // ======= Giao diện sáng / tối =======
     const themeBtn = document.getElementById("themeBtn");
     const currentTheme = localStorage.getItem("theme") || "dark";
-
     document.body.classList.toggle("light", currentTheme === "light");
     updateThemeButton();
 
@@ -177,6 +485,121 @@
       const isLight = document.body.classList.contains("light");
       themeBtn.textContent = isLight ? "☀️ Light Mode" : "🌙 Dark Mode";
     }
+
+    // ======= Load khi mở trang =======
+    window.addEventListener("load", loadExpenses);
+
+
+    // =================== BÁO CÁO CHI TIÊU THEO THÁNG ===================
+    async function loadMonthlyReport() {
+      const reportDiv = document.getElementById("monthlyReport");
+      if (!reportDiv) return console.error("❌ Không tìm thấy #monthlyReport");
+
+      const groupId = localStorage.getItem("currentGroupId");
+      if (!groupId) {
+        reportDiv.style.display = "block";
+        reportDiv.innerHTML = "<div>⚠️ Bạn chưa chọn nhóm — vào Home và nhấn 'Xem' nhóm trước.</div>";
+        return;
+      }
+
+      reportDiv.style.display = "block";
+      reportDiv.innerHTML = "<em>⏳ Đang tải báo cáo...</em>";
+
+      try {
+        const res = await fetch(`http://localhost:3000/report/monthly/${groupId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data.success || !data.report?.length) {
+          reportDiv.innerHTML = "<div>Không có dữ liệu báo cáo.</div>";
+          return;
+        }
+
+        // Giao diện dropdown chọn tháng
+        reportDiv.innerHTML = `
+      <h3 style="margin:0 0 6px 0">📊 Báo cáo chi tiêu theo tháng</h3>
+      <label>Chọn tháng:
+        <select id="monthFilter">
+          <option value="all">Tất cả</option>
+          ${data.report.map(r => `<option value="${r.month}">${r.month}</option>`).join("")}
+        </select>
+      </label>
+      <div id="reportTable" style="margin-top:8px;"></div>
+    `;
+
+        const reportTable = document.getElementById("reportTable");
+
+        function renderTable(filterMonth) {
+          const filtered = (filterMonth === "all")
+            ? data.report
+            : data.report.filter(r => r.month === filterMonth);
+
+          if (!filtered.length) {
+            reportTable.innerHTML = "<div>Không có dữ liệu cho tháng này.</div>";
+            return;
+          }
+
+          reportTable.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:6px">Tháng</th>
+              <th style="text-align:right;padding:6px">Tổng (₫)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(r => `
+              <tr>
+                <td style="padding:6px">${r.month}</td>
+                <td style="padding:6px;text-align:right">${Number(r.total).toLocaleString("vi-VN")}đ</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+        }
+
+        // render mặc định
+        renderTable("all");
+
+        // lắng nghe sự kiện chọn tháng
+        document.getElementById("monthFilter").addEventListener("change", (e) => {
+          renderTable(e.target.value);
+        });
+      } catch (err) {
+        console.error("Lỗi loadMonthlyReport:", err);
+        reportDiv.innerHTML = "<div>❌ Lỗi khi tải báo cáo. Xem console để biết thêm chi tiết.</div>";
+      }
+    }
+
+    // ======= Nút bật/tắt báo cáo =======
+    const reportBtn = document.getElementById("reportBtn");
+    if (reportBtn) {
+      reportBtn.addEventListener("click", () => {
+        const reportDiv = document.getElementById("monthlyReport");
+        if (!reportDiv) return;
+
+        if (!reportDiv.style.display || reportDiv.style.display === "none") {
+          loadMonthlyReport();
+        } else {
+          reportDiv.style.display = "none";
+          reportDiv.innerHTML = "";
+        }
+      });
+    }
+
+    // Ẩn mặc định khi mới vào
+    const reportContainer = document.getElementById("monthlyReport");
+    if (reportContainer) reportContainer.style.display = "none";
+
+    async function exportReport() {
+      const groupId = localStorage.getItem("currentGroupId");
+      if (!groupId) return alert("⚠️ Chưa chọn nhóm!");
+
+      window.open(`http://localhost:3000/report/export/${groupId}`, "_blank");
+    }
   </script>
+
 </body>
+
 </html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tạo nhóm</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Nền + hiệu ứng tiền bay */
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: #fff;
+      overflow: hidden;
+      padding-top: 50px;
+    }
+
+    .money {
+      position: absolute;
+      font-size: 22px;
+      opacity: 0.8;
+      animation: float 7s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes float {
+      0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(-10vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
+    /* ====== Nút Đổi tài khoản ====== */
+    .switch-account {
+      position: fixed;
+      top: 20px;
+      right: 25px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .switch-account:hover {
+      background: rgba(255, 255, 255, 0.35);
+      transform: translateY(-2px);
+    }
+
+    /* Tiêu đề và nội dung */
+    h1 {
+      text-align: center;
+      font-size: 30px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+      margin-bottom: 10px;
+      z-index: 2;
+    }
+
+    h2,
+    h3 {
+      color: #e0e6ff;
+      margin-bottom: 15px;
+      z-index: 2;
+    }
+
+    /* Hộp tạo nhóm */
+    .create-box {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      padding: 25px 30px;
+      width: 320px;
+      text-align: left;
+      z-index: 2;
+      color: #fff;
+    }
+
+    .create-box label {
+      font-weight: 600;
+      font-size: 15px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .create-box input {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      margin-bottom: 15px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    .create-box input::placeholder {
+      color: #ddd;
+    }
+
+    .create-box button {
+      width: 100%;
+      padding: 10px;
+      background-color: #6a5acd;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .create-box button:hover {
+      background-color: #7b68ee;
+      transform: translateY(-2px);
+    }
+
+    /* Danh sách nhóm */
+    h3 {
+      margin-top: 40px;
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .group-list {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      padding: 20px;
+      width: 320px;
+      z-index: 2;
+    }
+
+    .group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .group-item:last-child {
+      border-bottom: none;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .group-item button {
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .btn-view {
+      background-color: rgba(255, 255, 255, 0.9);
+      color: #000;
+    }
+
+    .btn-view:hover {
+      background-color: #d9e4ff;
+    }
+
+    .btn-delete {
+      background-color: #ff6b6b;
+      color: #fff;
+    }
+
+    .btn-delete:hover {
+      background-color: #ff4c4c;
+    }
+  </style>
+</head>
+
+<body>
+  <button class="switch-account" onclick="switchAccount()">Đổi tài khoản</button>
+
+  <h1>💰 Quản lý chi tiêu nhóm</h1>
+  <h2>Tạo nhóm mới</h2>
+
+  <div class="create-box">
+    <label for="groupName">Tên nhóm</label>
+    <input type="text" id="groupName" placeholder="Nhập tên nhóm" />
+    <button id="createGroupForm" type="submit">Tạo nhóm</button>
+  </div>
+
+  <h3>Các nhóm của bạn</h3>
+  <div class="group-list" id="groupList"></div>
+
+  <script>
+    // Hiệu ứng tiền bay
+    const icons = ["💸", "💰", "🪙", "💵"];
+    for (let i = 0; i < 20; i++) {
+      const span = document.createElement("span");
+      span.className = "money";
+      span.textContent = icons[Math.floor(Math.random() * icons.length)];
+      span.style.left = Math.random() * 100 + "vw";
+      span.style.animationDuration = 4 + Math.random() * 6 + "s";
+      span.style.fontSize = 18 + Math.random() * 14 + "px";
+      document.body.appendChild(span);
+    }
+
+    // --- Lấy thông tin user đang đăng nhập ---
+    const user = JSON.parse(localStorage.getItem("loggedInUser"));
+    const userId = user?.id || user?.user_id; // tùy backend trả về
+
+    if (!userId) {
+      alert("⚠️ Bạn chưa đăng nhập!");
+      window.location.href = "login.html";
+    } else {
+      loadGroups();
+    }
+
+    // --- Hàm tải danh sách nhóm ---
+    async function loadGroups() {
+      try {
+        const res = await fetch(`http://localhost:3000/groups?userId=${userId}`);
+        const data = await res.json();
+
+        if (!data.success) {
+          document.getElementById("groupList").innerHTML = `<p>❌ ${data.message}</p>`;
+          return;
+        }
+
+        if (data.groups.length === 0) {
+          document.getElementById("groupList").innerHTML = "<p>Bạn chưa tham gia nhóm nào.</p>";
+          return;
+        }
+
+        const listHTML = data.groups.map(
+          (g) => `
+          <div class="group-item">
+            <span><b>${g.group_name}</b></span>
+            <button onclick="viewGroup(${g.group_id})">Xem</button>
+          </div>`
+        ).join("");
+
+        document.getElementById("groupList").innerHTML = listHTML;
+      } catch (err) {
+        console.error(err);
+        document.getElementById("groupList").innerHTML = "❌ Lỗi kết nối server.";
+      }
+    }
+
+    // --- Hàm xem chi tiết nhóm ---
+    function viewGroup(groupId) {
+      localStorage.setItem("currentGroupId", groupId);
+      window.location.href = "index.html"; // Trang chi tiêu nhóm
+    }
+
+    // --- Xử lý form tạo nhóm ---
+    document.getElementById("createGroupForm").addEventListener("click", async function (e) {
+      e.preventDefault();
+      const groupName = document.getElementById("groupName").value.trim();
+
+      if (!groupName) return alert("Vui lòng nhập tên nhóm!");
+
+      try {
+        const res = await fetch("http://localhost:3000/create-group", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupName, userId }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("✅ Tạo nhóm thành công!");
+          document.getElementById("groupName").value = "";
+          loadGroups(); // refresh danh sách nhóm
+        } else {
+          alert("❌ " + data.message);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("❌ Lỗi kết nối server: " + err.message);
+      }
+    });
+
+    function switchAccount() {
+      // trở về login
+      window.location.href = "login.html";
+    }
+
+    renderGroups();
+  </script>
+</body>
+
+</html>
